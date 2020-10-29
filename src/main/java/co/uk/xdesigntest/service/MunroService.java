@@ -1,7 +1,10 @@
 package co.uk.xdesigntest.service;
 
 import co.uk.xdesigntest.entity.Munro;
+import co.uk.xdesigntest.enums.CategoryEnum;
+import co.uk.xdesigntest.enums.SortTypeEnum;
 import co.uk.xdesigntest.exception.ValidationException;
+import co.uk.xdesigntest.service.base.IMunroService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.io.FileNotFoundException;
@@ -21,7 +24,7 @@ public class MunroService implements IMunroService {
 
     private static List<Munro> munros;
 
-    /**
+    /*
      This it's just to simulate a cached list instead of load it on every single request
      In an ideal context, the best solution would be using a Redis or a true cache implementation like Google CacheBuilder for example
      */
@@ -35,187 +38,157 @@ public class MunroService implements IMunroService {
     }
 
     /**
-     * Find all Munros.
-     * @param hillCategory the hill category : optional
-     * @param orderHeightBy <code>asc</code> or <code>desc</code>  : optional
-     * @param orderNameBy <code>asc</code> or <code>desc</code>  : optional
-     * @param limit <code>size</code> or <code>size</code>  : optional
-     * @return List of {@link Munro} according properties
-     * @throws Exception the exception to be launched
-     */
-    @Override
-    public List<Munro> findAllMunros(final String hillCategory, final String orderHeightBy, final String orderNameBy, final Integer limit) throws ValidationException {
-        var result = munros.stream()
-                    .filter(munro -> !munro.getPost1997().equals(""))
-                    .filter(munro -> hillCategory != null ? munro.getPost1997().equals(hillCategory) :
-                            munro.getPost1997().equals("MUN") || munro.getPost1997().equals("TOP"))
-                    .collect(Collectors.toList());
-
-        if (orderHeightBy != null)
-            result = this.applySortedHeight(result, orderHeightBy);
-
-        if (orderNameBy != null)
-            result = this.applySortedName(result, orderNameBy);
-
-        result = result.stream().limit(limit != null ? limit : munros.size()).collect(Collectors.toList());
-        return result;
-    }
-
-    /**
      * Find Munro by runningNo.
      * @param runningNo the running number
      * @return {@link Munro} by runningNo
      */
     @Override
-    public Optional<Munro> findByRunningNumber(final int runningNo) {
-        return munros.stream()
-               .filter(m -> m.getRunningNo() == runningNo)
-               .filter(munro -> (!munro.getPost1997().equals("")))
-               .findFirst();
+    public Optional<Munro> findByRunningNumber(int runningNo) {
+        return munros.stream().filter(m -> m.getRunningNo() == runningNo).filter(munro -> (!munro.getPost1997().equals(""))).findFirst();
     }
 
     /**
-     * Returns list of {@link Munro} by a minimum height.
-     * @param heightInMetre the minimum height acceptable : required
-     * @param hillCategory the hill category : optional
+     * Returns Munros according to the criteria.
+     * @param category the hill category : optional
      * @param orderHeightBy <code>asc</code> or <code>desc</code>  : optional
      * @param orderNameBy <code>asc</code> or <code>desc</code>  : optional
      * @param limit <code>size</code> or <code>size</code>  : optional
-     * @return list of {@link Munro} by a minimum height.
-     * @throws ValidationException the exception to be launched
+     * @return List of Munro according properties
      */
     @Override
-    public List<Munro> getMunrosByMinimumHeight(final double heightInMetre,
-                                                final String hillCategory,
-                                                final String orderHeightBy,
-                                                final String orderNameBy,
-                                                final Integer limit) throws ValidationException {
-        if (heightInMetre < 0) {
-            throw new ValidationException("Invalid value for height");
-        }
+    public List<Munro> getMunros(Double minHeight, Double maxHeight, String category, String orderHeightBy, String orderNameBy, Integer limit) throws ValidationException {
+        if (invalidLimit(limit))
+            throw new ValidationException("Invalid value for limit: " + limit);
 
-        var result = munros.stream()
-                     .filter(munro -> munro.getHeightInMetre() >= heightInMetre)
-                     .filter(munro -> !munro.getPost1997().equals(""))
-                     .filter(munro -> hillCategory != null ? munro.getPost1997().equals(hillCategory) :
-                             munro.getPost1997().equals("MUN") || munro.getPost1997().equals("TOP"))
-                     .collect(Collectors.toList());
+        if (invalidHeight(minHeight, maxHeight))
+            throw new ValidationException("Heights cannot be less than zero and/or max-height cannot be less than the min-height");
 
-        if (orderHeightBy != null)
-            result = this.applySortedHeight(result, orderHeightBy);
+        return this.applyCriteria(munros, minHeight, maxHeight, category, orderHeightBy, orderNameBy, limit);
+    }
 
-        if (orderNameBy != null)
-            result = this.applySortedName(result, orderNameBy);
+    /**
+     * Apply criteria to {@link List} of {@link Munro}.
+     * @param result the result after the applied criteria
+     * @param orderHeightBy the order by height
+     * @param orderNameBy the order by name
+     * @return criteria to {@link List} of {@link Munro}.
+     */
+    private List<Munro> applyCriteria(List<Munro> result, Double minHeight, Double maxHeight, String category, String orderHeightBy, String orderNameBy, Integer limit) {
+        if (orderHeightBy != null && orderHeightBy.toUpperCase().equals(SortTypeEnum.ASC.getName()))
+            result = this.applySortedHeightAsc(result);
 
-        result = result.stream().limit(limit != null ? limit : munros.size()).collect(Collectors.toList());
+        if (orderHeightBy != null && orderHeightBy.toUpperCase().equals(SortTypeEnum.DESC.getName()))
+            result = this.applySortedHeightDesc(result);
+
+        if (orderNameBy != null && orderNameBy.toUpperCase().equals(SortTypeEnum.ASC.getName()))
+            result = this.applySortedNameAsc(result);
+
+        if (orderNameBy != null && orderNameBy.toUpperCase().equals(SortTypeEnum.DESC.getName()))
+            result = this.applySortedNameDesc(result);
+
+        result = this.applyCategory(result, category);
+        result = this.applyHeights(result, minHeight, maxHeight);
+        result = this.applyLimit(result, limit);
+
         return result;
     }
 
     /**
-     * Returns list of {@link Munro} by a maximum height.
-     * @param heightInMetre the maximum height acceptable : required
-     * @param hillCategory the hill category : optional
-     * @param orderHeightBy <code>asc</code> or <code>desc</code>  : optional
-     * @param orderNameBy <code>asc</code> or <code>desc</code>  : optional
-     * @param limit <code>size</code> or <code>size</code>  : optional
-     * @return list of {@link Munro} by a maximum height.
-     * @throws ValidationException the exception to be launched
+     * Applies the heigh criteria at the Munros list if defined by the user.
+     * @param list the list of the Munros
+     * @param minHeight the minimum height criteria
+     * @param maxHeight the maximum height criteria
+     * @return the heigh criteria at the Munros list if defined by the user
      */
-    @Override
-    public List<Munro> getMunrosByMaximumHeight(final double heightInMetre,
-                                                final String hillCategory,
-                                                final String orderHeightBy,
-                                                final String orderNameBy,
-                                                final Integer limit) throws ValidationException {
-        if (heightInMetre < 0) {
-            throw new ValidationException("Invalid value for height");
-        }
+    private List<Munro> applyHeights(List<Munro> list, final Double minHeight, final Double maxHeight) {
+        if (minHeight != null)
+            list = list.stream().filter(munro -> munro.getHeightInMetre() >= minHeight).collect(Collectors.toList());
 
-        var result = munros.stream()
-                    .filter(munro -> munro.getHeightInMetre() < heightInMetre)
-                    .filter(munro -> !munro.getPost1997().equals(""))
-                    .filter(munro -> hillCategory != null ? munro.getPost1997().equals(hillCategory) :
-                            munro.getPost1997().equals("MUN") || munro.getPost1997().equals("TOP"))
-                    .collect(Collectors.toList());
+        if (maxHeight != null)
+            list = list.stream().filter(munro -> munro.getHeightInMetre() < maxHeight).collect(Collectors.toList());
 
-        if (orderHeightBy != null)
-            result = this.applySortedHeight(result, orderHeightBy);
-
-        if (orderNameBy != null)
-            result = this.applySortedName(result, orderNameBy);
-
-        result = result.stream().limit(limit != null ? limit : munros.size()).collect(Collectors.toList());
-        return result;
+        return list;
     }
 
     /**
-     * Returns list of {@link Munro} by specific range of height.
-     * @param minimumHeightInMetre the minimum height acceptable : required
-     * @param maximumHeightInMetre the maximum height acceptable : required
-     * @param hillCategory the hill category : optional
-     * @param orderHeightBy <code>asc</code> or <code>desc</code>  : optional
-     * @param orderNameBy <code>asc</code> or <code>desc</code>  : optional
-     * @param limit <code>size</code> or <code>size</code>  : optional
-     * @return list of {@link Munro} by specific range of height.
-     * @throws ValidationException the exception to be launched
+     * Applies the limit criteria at the Munros list if defined by the user.
+     * @param list the list of the Munros
+     * @param limit the limit criteria
+     * @return the limit criteria at the Munros list if defined by the user
      */
-    @Override
-    public List<Munro> getMunroSpecificRangeHeight(final double minimumHeightInMetre,
-                                                   final double maximumHeightInMetre,
-                                                   final String orderHeightBy,
-                                                   final String orderNameBy,
-                                                   final String hillCategory,
-                                                   final Integer limit) throws ValidationException {
+    private List<Munro> applyLimit(List<Munro> list, final Integer limit) {
+        if (limit != null)
+            list = list.stream().limit(limit).collect(Collectors.toList());
 
-        if (minimumHeightInMetre < 0 || maximumHeightInMetre < 0) {
-            throw new ValidationException("Invalid value for height");
-        }
-        if (minimumHeightInMetre > maximumHeightInMetre) {
-            throw new ValidationException("Maximum height is less than the minimum height");
-        }
-
-        var result = munros.stream()
-                .filter(munro -> munro.getHeightInMetre() >= minimumHeightInMetre && munro.getHeightInMetre() < maximumHeightInMetre)
-                .filter(munro -> !munro.getPost1997().equals(""))
-                .filter(munro -> hillCategory != null ? munro.getPost1997().equals(hillCategory) :
-                        munro.getPost1997().equals("MUN") || munro.getPost1997().equals("TOP"))
-                .collect(Collectors.toList());
-
-        if (orderHeightBy != null)
-            result = this.applySortedHeight(result, orderHeightBy);
-
-        if (orderNameBy != null)
-            result = this.applySortedName(result, orderNameBy);
-
-        result = result.stream().limit(limit != null ? limit : munros.size()).collect(Collectors.toList());
-        return result;
+        return list;
     }
 
     /**
-     * Applies a sorted result ordered by height asc or desc.
+     * Applies the category criteria at the Munros list if defined by the user.
+     * @param list the list of the Munros
+     * @param category the category criteria
+     * @return the category criteria at the Munros list if defined by the user
+     */
+    private List<Munro> applyCategory(final List<Munro> list, String category) {
+        if (category != null) {
+            return list.stream().filter(munro -> munro.getPost1997().equals(CategoryEnum.get(category).getName())).collect(Collectors.toList());
+        } else {
+            return list.stream().filter(munro -> !munro.getPost1997().equals("")).collect(Collectors.toList());
+        }
+    }
+
+    /**
+     * Check invalid values to the heights.
+     * @param minHeight the minimum height value
+     * @param maxHeight the maximum height value
+     * @return <code>true</code> or <code>false</code>
+     */
+    private boolean invalidHeight(final Double minHeight, final Double maxHeight) {
+        return (minHeight != null && minHeight < 0) || (maxHeight != null && maxHeight < 0) || (minHeight != null && maxHeight != null && maxHeight < minHeight);
+    }
+
+    /**
+     * Check invalid value to the limit.
+     * @param limit the limit value
+     * @return <code>true</code> or <code>false</code>
+     */
+    private boolean invalidLimit(final Integer limit) {
+        return (limit != null && limit <= 0);
+    }
+
+    /**
+     * Applies a sorted result ordered by height asc.
      * @param result the sorted result
-     * @param orderHeightBy the conditional <code>asc</code> or <code>desc</code> : optional
-     * @return sorted result ordered by height asc or desc
+     * @return sorted result ordered by height asc
      */
-    private List<Munro> applySortedHeight(List<Munro> result, final String orderHeightBy) {
-        result = orderHeightBy.equalsIgnoreCase("asc") ?
-                 result.stream().sorted(Comparator.comparing(Munro::getHeightInMetre)).collect(Collectors.toList()) :
-                 result.stream().sorted(Comparator.comparing(Munro::getHeightInMetre).reversed()).collect(Collectors.toList());
-
-        return result;
+    private List<Munro> applySortedHeightAsc(final List<Munro> result) {
+        return result.stream().sorted(Comparator.comparing(Munro::getHeightInMetre)).collect(Collectors.toList());
     }
 
     /**
-     * Applies a sorted result ordered by orderNameBy asc or desc.
+     * Applies a sorted result ordered by height desc.
      * @param result the sorted result
-     * @param orderNameBy the conditional <code>asc</code> or <code>desc</code> : optional
-     * @return sorted result ordered by height asc or desc
+     * @return sorted result ordered by height desc
      */
-    private List<Munro> applySortedName(List<Munro> result, final String orderNameBy) {
-        result = orderNameBy.equalsIgnoreCase("asc") ?
-                 result.stream().sorted(Comparator.comparing(Munro::getName)).collect(Collectors.toList()) :
-                 result.stream().sorted(Comparator.comparing(Munro::getName).reversed()).collect(Collectors.toList());
+    private List<Munro> applySortedHeightDesc(final List<Munro> result) {
+        return result.stream().sorted(Comparator.comparing(Munro::getHeightInMetre).reversed()).collect(Collectors.toList());
+    }
 
-        return result;
+    /**
+     * Applies a sorted result ordered by orderNameBy asc.
+     * @param result the sorted result
+     * @return sorted result ordered by height asc
+     */
+    private List<Munro> applySortedNameAsc(final List<Munro> result) {
+        return result.stream().sorted(Comparator.comparing(Munro::getName)).collect(Collectors.toList());
+    }
+
+    /**
+     * Applies a sorted result ordered by orderNameBy desc.
+     * @param result the sorted result
+     * @return sorted result ordered by height desc
+     */
+    private List<Munro> applySortedNameDesc(final List<Munro> result) {
+        return result.stream().sorted(Comparator.comparing(Munro::getName).reversed()).collect(Collectors.toList());
     }
 }
