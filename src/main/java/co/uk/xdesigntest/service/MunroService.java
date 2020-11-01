@@ -48,12 +48,14 @@ public class MunroService implements IMunroService {
     }
 
     /**
-     * Returns Munros according to the criteria.
+     * Returns list of {@link Munro} by specific range of height.
+     * @param minHeight the minimum height acceptable : optional
+     * @param maxHeight the maximum height acceptable : optional
      * @param category the hill category : optional
      * @param orderHeightBy <code>asc</code> or <code>desc</code>  : optional
      * @param orderNameBy <code>asc</code> or <code>desc</code>  : optional
      * @param limit <code>size</code> or <code>size</code>  : optional
-     * @return List of Munro according properties
+     * @return list of {@link Munro} by specific range of height.
      */
     @Override
     public List<Munro> getMunros(Double minHeight, Double maxHeight, String category, String orderHeightBy, String orderNameBy, Integer limit) throws ValidationException {
@@ -61,7 +63,10 @@ public class MunroService implements IMunroService {
             throw new ValidationException("Invalid value for limit: " + limit);
 
         if (invalidHeight(minHeight, maxHeight))
-            throw new ValidationException("Heights cannot be less than zero and/or max-height cannot be less than the min-height");
+            throw new ValidationException("Heights cannot be less than zero");
+
+        if (invalidMaxHeightLessThanMinHeight(minHeight, maxHeight))
+            throw new ValidationException("Maximum height could not be less than minimum height");
 
         return this.applyCriteria(munros, minHeight, maxHeight, category, orderHeightBy, orderNameBy, limit);
     }
@@ -138,13 +143,23 @@ public class MunroService implements IMunroService {
     }
 
     /**
+     * Check invalid criteria that maxHeight could not be less than minHeight.
+     * @param minHeight the minimum height value
+     * @param maxHeight the maximum height value
+     * @return <code>true</code> or <code>false</code>
+     */
+    private boolean invalidMaxHeightLessThanMinHeight(final Double minHeight, final Double maxHeight) {
+        return (minHeight != null && maxHeight != null && maxHeight < minHeight);
+    }
+
+    /**
      * Check invalid values to the heights.
      * @param minHeight the minimum height value
      * @param maxHeight the maximum height value
      * @return <code>true</code> or <code>false</code>
      */
     private boolean invalidHeight(final Double minHeight, final Double maxHeight) {
-        return (minHeight != null && minHeight < 0) || (maxHeight != null && maxHeight < 0) || (minHeight != null && maxHeight != null && maxHeight < minHeight);
+        return (minHeight != null && minHeight < 0) || (maxHeight != null && maxHeight < 0);
     }
 
     /**

@@ -22,8 +22,8 @@ public interface IMunroService {
 
     /**
      * Returns list of {@link Munro} by specific range of height.
-     * @param minHeightInMetre the minimum height acceptable : required
-     * @param maxHeightInMetre the maximum height acceptable : required
+     * @param minHeightInMetre the minimum height acceptable : optional
+     * @param maxHeightInMetre the maximum height acceptable : optional
      * @param hillCategory the hill category : optional
      * @param orderHeightBy <code>asc</code> or <code>desc</code>  : optional
      * @param orderNameBy <code>asc</code> or <code>desc</code>  : optional
