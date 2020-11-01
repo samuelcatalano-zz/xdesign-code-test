@@ -14,7 +14,7 @@ xDesign - Technical Challenge
 Once with the application running:
 http://localhost:8080/swagger-ui.html
 
-**Docker**
+**Docker:**
 Exists a Dockerfile prepared to download a OpenJDK 11 Slim and install the application.
 
 - Run the command: `docker build -t xdesign/challenge:release .`
