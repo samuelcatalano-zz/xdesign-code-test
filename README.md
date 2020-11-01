@@ -31,6 +31,12 @@ Exists a Dockerfile prepared to download a OpenJDK 11 Slim and install the appli
 > Terminal:
 - `mvn spring-boot:run`
 
+### How to run the tests?
+
+> Terminal:
+- `mvn test`
+
+
 ### APIs:
 
 The basic URL path is: http://localhost:8080/api/xdesign/munros
