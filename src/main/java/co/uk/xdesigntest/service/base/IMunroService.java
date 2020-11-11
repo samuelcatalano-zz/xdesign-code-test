@@ -5,6 +5,7 @@ import co.uk.xdesigntest.exception.ValidationException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * @author Samuel Catalano
@@ -30,5 +31,5 @@ public interface IMunroService {
      * @param limit <code>size</code> or <code>size</code>  : optional
      * @return list of {@link Munro} by specific range of height.
      */
-    List<Munro> getMunros(Double minHeightInMetre, Double maxHeightInMetre, String hillCategory, String orderHeightBy, String orderNameBy, Integer limit) throws ValidationException;
+    Stream<Munro> getMunros(Double minHeightInMetre, Double maxHeightInMetre, String hillCategory, String orderHeightBy, String orderNameBy, Integer limit) throws ValidationException;
 }

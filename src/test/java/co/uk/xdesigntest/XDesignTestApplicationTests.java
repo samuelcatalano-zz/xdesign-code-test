@@ -18,6 +18,9 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+
+import java.util.stream.Collectors;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -60,7 +63,7 @@ class XDesignTestApplicationTests {
             .andReturn();
 
         var munros = this.service.getMunros(null, null, null, null, null, null);
-        assertThat(munros.size(), is(509));
+        assertThat((int) munros.count(), is(509));
     }
 
     @Test
@@ -76,7 +79,7 @@ class XDesignTestApplicationTests {
             .andReturn();
 
         var munros = this.service.getMunros(null, null, CategoryEnum.MUN.getName(), null, null, null);
-        assertThat(munros.size(), is(282));
+        assertThat((int) munros.count(), is(282));
     }
 
     @Test
@@ -92,7 +95,7 @@ class XDesignTestApplicationTests {
             .andReturn();
 
         var munros = this.service.getMunros(null, null, CategoryEnum.TOP.getName(), null, null, null);
-        assertThat(munros.size(), is(227));
+        assertThat((int) munros.count(), is(227));
     }
 
     @Test
@@ -108,7 +111,7 @@ class XDesignTestApplicationTests {
             .andReturn();
 
         var munros = this.service.getMunros(950d, 1095d, null, null, null, null);
-        assertThat(munros.size(), is(291));
+        assertThat((int) munros.count(), is(291));
     }
 
     @Test
@@ -142,7 +145,7 @@ class XDesignTestApplicationTests {
         var munrosAsc = this.service.getMunros(950d, 1095d, null, null, SortTypeEnum.ASC.getName(), null);
         var munrosDesc = this.service.getMunros(950d, 1095d, null, null, SortTypeEnum.DESC.getName(), null);
 
-        assertThat(munrosAsc.get(0).getName()).isNotEqualTo(munrosDesc.get(0).getName());
+        assertThat(munrosAsc.collect(Collectors.toList()).get(0).getName()).isNotEqualTo(munrosDesc.collect(Collectors.toList()).get(0).getName());
     }
 
     @Test
@@ -160,7 +163,7 @@ class XDesignTestApplicationTests {
         var munrosAsc = this.service.getMunros(950d, 1095d, null, SortTypeEnum.ASC.getName(), null, null);
         var munrosDesc = this.service.getMunros(950d, 1095d, null, SortTypeEnum.DESC.getName(), null, null);
 
-        assertThat(munrosAsc.get(0).getHeightInMetre()).isNotEqualTo(munrosDesc.get(0).getHeightInMetre());
+        assertThat(munrosAsc.collect(Collectors.toList()).get(0).getHeightInMetre()).isNotEqualTo(munrosDesc.collect(Collectors.toList()).get(0).getHeightInMetre());
     }
 
     @Test
